@@ -1,97 +1,427 @@
-# Azure Firewall
-[![Changelog](https://img.shields.io/badge/changelog-release-green.svg)](CHANGELOG.md) [![Notice](https://img.shields.io/badge/notice-copyright-yellow.svg)](NOTICE) [![Apache V2 License](https://img.shields.io/badge/license-Apache%20V2-orange.svg)](LICENSE) [![TF Registry](https://img.shields.io/badge/terraform-registry-blue.svg)](https://registry.terraform.io/modules/claranet/vpn/azurerm/)
+# terraform-azure-firewall
+# Terraform Azure Infrastructure
 
-Azure Firewall is a managed, cloud-based network security service that protects your Azure Virtual Network resources. It's a fully stateful firewall as a service with built-in high availability and unrestricted cloud scalability.
+This Terraform configuration defines an Azure infrastructure using the Azure provider.
 
-## Version compatibility
+## Table of Contents
 
-| Module version | Terraform version |
-|----------------|-------------------|
-| >= 1.x.x       | 0.14.x            |
-| >= 1.x.x       | 0.13.x            |
-| >= 1.x.x       | 0.12.x            |
+- [Introduction](#introduction)
+- [Usage](#usage)
+- [Module Inputs](#module-inputs)
+- [Module Outputs](#module-outputs)
+- [Examples](#examples)
+- [License](#license)
 
-## Resources
+## Introduction
+This module provides a Terraform configuration for deploying various Azure resources as part of your infrastructure. The configuration includes the deployment of resource groups, virtual networks, subnets, firewall.
 
-* Azure Firewall
+## Usage
+To use this module, you should have Terraform installed and configured for AZURE. This module provides the necessary Terraform configuration
+for creating AZURE resources, and you can customize the inputs as needed. Below is an example of how to use this module:
 
+# Examples
 
-## Configuration 
-
-The follwoing Options are available to configure Azure Firewall
-
-**SKU Configuration**
-
-Below options are available for Azure Firewall .
-
-```sku_name``` (Optional) Sku name of the Firewall. Possible values are ..
-
-* AZFW_Hub 
-* AZFW_VNet
-
-```sku_tier``` (Optional) Sku tier of the Firewall. Possible values are
-* Premium  
-* Standard. 
-
-**Threat intelligence Mode**
-
-```threat_intel_mode``` - (Optional) The operation mode for threat intelligence-based filtering. Possible values are: 
-
-* Off
-* Alert
-* Deny 
-*  ""(empty string). 
-**Defaults to Alert.**
-
-**Rule Configuration**
-
-
-## How to Use 
+# Example: complete
 
 ```hcl
 module "firewall" {
-  source  = ""
-  version = "1.0.0"
+  depends_on          = [module.name_specific_subnet]
+  source              = "git::https://github.com/slovink/terraform-azure-firewall.git?ref=v1.0.0"
+  name                = local.name
+  environment         = local.environment
+  resource_group_name = module.resource_group.resource_group_name
+  location            = module.resource_group.resource_group_location
+  subnet_id           = module.name_specific_subnet.specific_subnet_id
+  public_ip_names     = ["ingress", "vnet"] // Name of public ips you want to create.
+  firewall_enable     = true
+  policy_rule_enabled = true
+  application_rule_collection = [
+    {
+      name     = "example_app_policy"
+      priority = 200
+      action   = "Allow"
+      rules = [
+        {
+          name              = "app_test"
+          source_addresses  = ["*"] // ["X.X.X.X"]
+          destination_fqdns = ["*"] // ["X.X.X.X"]
+          protocols = [
+            {
+              port = "443"
+              type = "Https"
+            },
+            {
+              port = "80"
+              type = "Http"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 
-  prefix = 
-  project_prefix = 
-  project = 
-  environment = 
-  location = 
+  network_rule_collection = [
+    {
+      name     = "example_network_policy"
+      priority = "100"
+      action   = "Allow"
+      rules = [
+        {
+          name                  = "ssh"
+          protocols             = ["TCP"]
+          source_addresses      = ["*"] // ["X.X.X.X"]
+          destination_addresses = ["*"] // ["X.X.X.X"]
+          destination_ports     = ["22"]
+        }
 
-  environment_owner = 
-  environment_costcenter =
-  environment_controller =
+      ]
+    },
+    {
+      name     = "example_network_policy-2"
+      priority = "101"
+      action   = "Allow"
+      rules = [
+        {
+          name                  = "smtp"
+          protocols             = ["TCP"]
+          source_addresses      = ["*"] // ["X.X.X.X"]
+          destination_addresses = ["*"] // ["X.X.X.X"]
+          destination_ports     = ["587"]
+        }
+      ]
+    }
+  ]
 
+  nat_rule_collection = [
+    {
+      name     = "example_nat_policy-1"
+      priority = "101"
+      rules = [
+        {
+          name                = "http"
+          protocols           = ["TCP"]
+          source_addresses    = ["*"] // ["X.X.X.X"]
+          destination_ports   = ["80"]
+          source_addresses    = ["*"]
+          translated_port     = "80"
+          translated_address  = "10.1.1.1"                           #provide private ip address to translate
+          destination_address = module.firewall.public_ip_address[1] //Public ip associated with firewall. Here index 1 indicates 'vnet ip' (from public_ip_names     = ["ingress" , "vnet"])
 
+        },
+        {
+          name                = "https"
+          protocols           = ["TCP"]
+          destination_ports   = ["443"]
+          source_addresses    = ["*"]
+          translated_port     = "443"
+          translated_address  = "10.1.1.1"                           #provide private ip address to translate
+          destination_address = module.firewall.public_ip_address[1] //Public ip associated with firewall
 
-  
-  }
+        }
+      ]
+    },
+
+    {
+      name     = "example-nat-policy-2"
+      priority = "100"
+      rules = [
+        {
+          name                = "http"
+          protocols           = ["TCP"]
+          source_addresses    = ["*"] // ["X.X.X.X"]
+          destination_ports   = ["80"]
+          translated_port     = "80"
+          translated_address  = "10.1.1.2"                           #provide private ip address to translate
+          destination_address = module.firewall.public_ip_address[0] //Public ip associated with firewall.Here index 0 indicates 'ingress ip' (from public_ip_names     = ["ingress" , "vnet"])
+
+        },
+        {
+          name                = "https"
+          protocols           = ["TCP"]
+          source_addresses    = ["*"] // ["X.X.X.X"]
+          destination_ports   = ["443"]
+          translated_port     = "443"
+          translated_address  = "10.1.1.2"
+          destination_address = module.firewall.public_ip_address[0]
+        }
+      ]
+    }
+  ]
+}
 ```
 
-## Deploy Resources  
+# Example: firewall-with-isolated-rules
 
-**Initialize terraform module**
+```hcl
+module "firewall-rules" {
+  depends_on          = [module.firewall]
+  source              = "git::https://github.com/slovink/terraform-azure-firewall.git?ref=v1.0.0"
+  name                = local.name
+  environment         = local.environment
+  policy_rule_enabled = true
+  firewall_policy_id  = module.firewall.firewall_policy_id
+  application_rule_collection = [
+    {
+      name     = "example_app_policy"
+      priority = 200
+      action   = "Allow"
+      rules = [
+        {
+          name              = "app_test"
+          source_addresses  = ["*"] // ["X.X.X.X"]
+          destination_fqdns = ["*"] // ["X.X.X.X"]
+          protocols = [
+            {
+              port = "443"
+              type = "Https"
+            },
+            {
+              port = "80"
+              type = "Http"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+  network_rule_collection = [
+    {
+      name     = "example_network_policy"
+      priority = "100"
+      action   = "Allow"
+      rules = [
+        {
+          name                  = "ssh"
+          protocols             = ["TCP"]
+          source_addresses      = ["*"] // ["X.X.X.X"]
+          destination_addresses = ["*"] // ["X.X.X.X"]
+          destination_ports     = ["22"]
+        }
 
-```sh
-terraform init 
+      ]
+    },
+    {
+      name     = "example_network_policy-2"
+      priority = "101"
+      action   = "Allow"
+      rules = [
+        {
+          name                  = "smtp"
+          protocols             = ["TCP"]
+          source_addresses      = ["*"] // ["X.X.X.X"]
+          destination_addresses = ["*"] // ["X.X.X.X"]
+          destination_ports     = ["587"]
+        }
+      ]
+    }
+  ]
+
+  nat_rule_collection = [
+    {
+      name     = "example_nat_policy-1"
+      priority = "101"
+      rules = [
+        {
+          name                = "http"
+          protocols           = ["TCP"]
+          source_addresses    = ["*"] // ["X.X.X.X"]
+          destination_ports   = ["80"]
+          source_addresses    = ["*"]
+          translated_port     = "80"
+          translated_address  = "10.1.1.1"                           #provide private ip address to translate
+          destination_address = module.firewall.public_ip_address[1] //Public ip associated with firewall. Here index 1 indicates 'vnet ip' (from public_ip_names     = ["ingress" , "vnet"])
+
+        },
+        {
+          name                = "https"
+          protocols           = ["TCP"]
+          destination_ports   = ["443"]
+          source_addresses    = ["*"]
+          translated_port     = "443"
+          translated_address  = "10.1.1.1"                           #provide private ip address to translate
+          destination_address = module.firewall.public_ip_address[1] //Public ip associated with firewall
+
+        }
+      ]
+    },
+    {
+      name     = "example-nat-policy-2"
+      priority = "100"
+      rules = [
+        {
+          name                = "http"
+          protocols           = ["TCP"]
+          source_addresses    = ["*"] // ["X.X.X.X"]
+          destination_ports   = ["80"]
+          translated_port     = "80"
+          translated_address  = "10.1.1.2"                           #provide private ip address to translate
+          destination_address = module.firewall.public_ip_address[0] //Public ip associated with firewall.Here index 0 indicates 'ingress ip' (from public_ip_names     = ["ingress" , "vnet"])
+
+        },
+        {
+          name                = "https"
+          protocols           = ["TCP"]
+          source_addresses    = ["*"] // ["X.X.X.X"]
+          destination_ports   = ["443"]
+          translated_port     = "443"
+          translated_address  = "10.1.1.2"                           #provide private ip address to translate
+          destination_address = module.firewall.public_ip_address[0] //Public ip associated with firewall
+        }
+      ]
+    }
+  ]
+}
+
 ```
-**Plan terraform module**
+# Example: firewall-with-public-ip-prefix
 
-```sh
-terraform plan 
+```hcl
+module "firewall" {
+  depends_on              = [module.name_specific_subnet]
+  source                  = "git::https://github.com/slovink/terraform-azure-firewall.git?ref=v1.0.0"
+  name                    = local.name
+  environment             = local.environment
+  resource_group_name     = module.resource_group.resource_group_name
+  location                = module.resource_group.resource_group_location
+  subnet_id               = module.name_specific_subnet.specific_subnet_id
+  public_ip_prefix_enable = true
+  prefix_public_ip_names  = ["test-1", "test-2"]
+  public_ip_prefix_length = 31
+  enable_prefix_subnet    = true
+  firewall_enable     = true
+  policy_rule_enabled = true
+  application_rule_collection = [
+    {
+      name     = "example_app_policy"
+      priority = 200
+      action   = "Allow"
+      rules = [
+        {
+          name              = "app_test"
+          source_addresses  = ["*"] // ["X.X.X.X"]
+          destination_fqdns = ["*"] // ["X.X.X.X"]
+          protocols = [
+            {
+              port = "443"
+              type = "Https"
+            },
+            {
+              port = "80"
+              type = "Http"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+
+  network_rule_collection = [
+    {
+      name     = "example_network_policy"
+      priority = "100"
+      action   = "Allow"
+      rules = [
+        {
+          name                  = "ssh"
+          protocols             = ["TCP"]
+          source_addresses      = ["*"] // ["X.X.X.X"]
+          destination_addresses = ["*"] // ["X.X.X.X"]
+          destination_ports     = ["22"]
+        }
+
+      ]
+    },
+    {
+      name     = "example_network_policy-2"
+      priority = "101"
+      action   = "Allow"
+      rules = [
+        {
+          name                  = "smtp"
+          protocols             = ["TCP"]
+          source_addresses      = ["*"] // ["X.X.X.X"]
+          destination_addresses = ["*"] // ["X.X.X.X"]
+          destination_ports     = ["587"]
+        }
+      ]
+    }
+  ]
+
+  nat_rule_collection = [
+    {
+      name     = "example_nat_policy-1"
+      priority = "101"
+      rules = [
+        {
+          name                = "http"
+          protocols           = ["TCP"]
+          source_addresses    = ["*"] // ["X.X.X.X"]
+          destination_ports   = ["80"]
+          source_addresses    = ["*"]
+          translated_port     = "80"
+          translated_address  = "10.1.1.1"                                  #provide private ip address to translate
+          destination_address = module.firewall.prefix_public_ip_address[1] //Public ip associated with firewall. Here index 1 indicates 'vnet ip' (from public_ip_names     = ["ingress" , "vnet"])
+
+        },
+        {
+          name                = "https"
+          protocols           = ["TCP"]
+          destination_ports   = ["443"]
+          source_addresses    = ["*"]
+          translated_port     = "443"
+          translated_address  = "10.1.1.1"                                  #provide private ip address to translate
+          destination_address = module.firewall.prefix_public_ip_address[1] //Public ip associated with firewall
+
+        }
+      ]
+    },
+
+    {
+      name     = "example-nat-policy-2"
+      priority = "100"
+      rules = [
+        {
+          name                = "http"
+          protocols           = ["TCP"]
+          source_addresses    = ["*"] // ["X.X.X.X"]
+          destination_ports   = ["80"]
+          translated_port     = "80"
+          translated_address  = "10.1.1.2"                                  #provide private ip address to translate
+          destination_address = module.firewall.prefix_public_ip_address[0] //Public ip associated with firewall.Here index 0 indicates 'ingress ip' (from public_ip_names     = ["ingress" , "vnet"])
+
+        },
+        {
+          name                = "https"
+          protocols           = ["TCP"]
+          source_addresses    = ["*"] // ["X.X.X.X"]
+          destination_ports   = ["443"]
+          translated_port     = "443"
+          translated_address  = "10.1.1.2"                                  #provide private ip address to translate
+          destination_address = module.firewall.prefix_public_ip_address[0] //Public ip associated with firewall
+        }
+      ]
+    }
+  ]
+}
 ```
 
-**Deploy terraform module**
+This example demonstrates how to create various AZURE resources using the provided modules. Adjust the input values to suit your specific requirements.
 
-```sh
-terraform apply 
-```
+## Module Inputs
+- 'name': Specifies the name of the Firewall.
+- 'resource_group_name': The name of the resource group in which to create the resource.
+- 'location': Specifies the supported Azure location where the resource exists.
+- 'subnet_id': Reference to the subnet associated with the IP Configuration.
 
-## Destroy Resources 
+## Module Outputs
+- 'firewall_id': The ID of the Azure Firewall.
 
-**Destroy terraform module**
+## Examples
+For detailed examples on how to use this module, please refer to the '[examples](https://github.com/slovink/terraform-azure-firewall/blob/krishna/_example)' directory within this repository.
 
-```sh
-terraform destroy
-``
+## License
+This Terraform module is provided under the '[License Name]' License. Please see the [LICENSE](https://github.com/slovink/terraform-azure-firewall/blob/krishna/LICENSE) file for more details.
+
+## Author
+Your Name
+Replace '[License Name]' and '[Your Name]' with the appropriate license and your information. Feel free to expand this README with additional details or usage instructions as needed for your specific use case.

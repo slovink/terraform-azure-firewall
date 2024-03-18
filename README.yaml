@@ -5,7 +5,7 @@
 #
 
 # Name of this project
-name : TERRAFORM AZURE TERRAFORM
+name : TERRAFORM AZURE FIREWALL
 
 # License of this project
 license: "APACHE"
@@ -20,7 +20,7 @@ badges:
     url: "https://www.terraform.io"
   - name: "Licence"
     image: "https://img.shields.io/badge/License-APACHE-blue.svg"
-    url: "https://github.com/slovink/terraform-azure-databricks/blob/dev/LICENSE"
+    url: "https://github.com/slovink/terraform-azure-firewall/blob/master/LICENSE"
 
 #  description of this project
 description: |-

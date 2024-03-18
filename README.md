@@ -16,7 +16,7 @@
 <a href="https://www.terraform.io">
   <img src="https://img.shields.io/badge/Terraform-v1.7.4-green" alt="Terraform">
 </a>
-<a href="https://github.com/slovink/terraform-azure-firewall/blob/dev/LICENSE">
+<a href="https://github.com/slovink/terraform-azure-firewall/blob/master/LICENSE">
   <img src="https://img.shields.io/badge/License-APACHE-blue.svg" alt="Licence">
 </a>
 
@@ -439,10 +439,10 @@ This example demonstrates how to create various AZURE resources using the provid
 - 'firewall_id': The ID of the Azure Firewall.
 
 ## Examples
-For detailed examples on how to use this module, please refer to the '[examples](https://github.com/slovink/terraform-azure-firewall/blob/dev/_example)' directory within this repository.
+For detailed examples on how to use this module, please refer to the '[examples](https://github.com/slovink/terraform-azure-firewall/blob/master/_example)' directory within this repository.
 
 ## License
-This Terraform module is provided under the '[License Name]' License. Please see the [LICENSE](https://github.com/slovink/terraform-azure-firewall/blob/dev/LICENSE) file for more details.
+This Terraform module is provided under the '[License Name]' License. Please see the [LICENSE](https://github.com/slovink/terraform-azure-firewall/blob/master/LICENSE) file for more details.
 
 ## Author
 Your Name
